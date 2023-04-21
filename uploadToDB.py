@@ -1,89 +1,46 @@
 import psycopg2
-import csv
+import json
 
-# Устанавливаем параметры подключения к базе данных
-db_host = "localhost"
-db_name = "database_name"
-db_user = "username"
-db_password = "password"
+# параметры подключения к БД
+conn_params = {
+    "host": "localhost",
+    "database": "database_name",
+    "user": "username",
+    "password": "password"
+}
 
-# Открываем соединение с базой данных
-conn = psycopg2.connect(
-    host=db_host,
-    dbname=db_name,
-    user=db_user,
-    password=db_password
-)
+# имя файла с данными
+filename = "game_info.json3.json"
 
-# Создаем курсор для выполнения операций в базе данных
+# подключаемся к БД
+conn = psycopg2.connect(**conn_params)
+
+# открываем файл с данными и загружаем их в список
+with open(filename, "r") as f:
+    data = json.load(f)
+
+# создаем курсор для выполнения запросов
 cur = conn.cursor()
 
-# Определяем имя таблицы и имя файла CSV
-table_name = "games"
-csv_file = "epic games store-video games.csv"
-
-# Создаем таблицу в базе данных
-cur.execute(f"DROP TABLE IF EXISTS {table_name}")
-cur.execute(f"""
-    CREATE TABLE {table_name} (
+# создаем таблицу для хранения данных, если её еще нет
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS games (
         id SERIAL PRIMARY KEY,
-        game_link TEXT,
-        name TEXT,
-        price TEXT,
-        developer TEXT,
-        genres TEXT[],
-        features TEXT[],
-        publisher TEXT,
-        release_date TEXT,
-        recommended_os TEXT,
-        cpu TEXT,
-        memory TEXT,
-        gpu TEXT,
-        storage TEXT,
-        critics_recommend TEXT,
-        opencritic_rating TEXT,
-        platform TEXT,
-        top_critic_average TEXT
+        game_name TEXT,
+        game_version TEXT,
+        available_game_stats JSONB
     )
 """)
 
-# Читаем данные из CSV-файла и добавляем их в таблицу
-with open(csv_file, 'r', encoding='utf-8') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        game_link = row["game_link"]
-        name = row["name"]
-        price = row["price of game"].replace(',', '').replace('в‚№', '')  # убираем запятые и знак валюты
-        developer = row["developer of game"]
-        genres = row["genres of games"].split(",")
-        features = row["features of game"].split(",")
-        publisher = row["publisher of game"]
-        release_date = row["date release"]
-        recommended_os = row["recommended_os"]
-        cpu = row["cpu"]
-        memory = row["memory"]
-        gpu = row["gpu_x"]
-        storage = row["storage"]
-        critics_recommend = row["Critics Recommend"]
-        opencritic_rating = row["OpenCritic Rating"].replace('%', '')  # убираем знак процента
-        platform = row["platform"]
-        top_critic_average = row["Top Critic Average"].replace(',', '')  # убираем запятые
-        cur.execute(f"""
-            INSERT INTO {table_name} (
-                game_link, name, price, developer, genres, features, publisher,
-                release_date, recommended_os, cpu, memory, gpu, storage,
-                critics_recommend, opencritic_rating, platform, top_critic_average
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            game_link, name, price, developer, genres, features, publisher,
-            release_date, recommended_os, cpu, memory, gpu, storage,
-            critics_recommend, opencritic_rating, platform, top_critic_average
-        ))
+# добавляем данные в таблицу
+for item in data:
+    game = item["game"]
+    cur.execute("""
+        INSERT INTO games (game_name, game_version, available_game_stats)
+        VALUES (%s, %s, %s)
+    """, (game["gameName"], game["gameVersion"], json.dumps(game["availableGameStats"])))
 
-# Фиксируем изменения в базе данных
+# сохраняем изменения и закрываем соединение
 conn.commit()
-
-# Закрываем соединение с базой данных
 cur.close()
 conn.close()
