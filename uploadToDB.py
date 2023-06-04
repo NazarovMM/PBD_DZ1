@@ -4,8 +4,8 @@ import json
 # параметры подключения к БД
 conn_params = {
     "host": "localhost",
-    "database": "database_name",
-    "user": "username",
+    "database": "dz",
+    "user": "postgres",
     "password": "password"
 }
 
